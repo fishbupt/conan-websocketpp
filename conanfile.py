@@ -8,8 +8,8 @@ class WebsocketppConan(ConanFile):
     url = "<Package recipe repository url here, for issues about the package>"
     build_policy = "missing"
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False]}
-    default_options = "shared=False"
+    options = {"shared": [True, False], "fPIC": [True, False]}
+    default_options = "shared=False", "fPIC=False"
     generators = "cmake"
 
     def source(self):
@@ -23,8 +23,18 @@ conan_basic_setup()''')
 
     def build(self):
         cmake = CMake(self)
-        flags = "-DBUILD_SHARED_LIBS=ON" if self.options.shared else "-DBUILD_SHARED_LIBS=OFF"
-        flags += " -DENABLE_CPP11=ON -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF"
-        flags += " -DCMAKE_INSTALL_PREFIX=%s" % self.package_folder
-        self.run('cmake websocketpp %s %s' % (cmake.command_line, flags))
-        self.run("cmake --build . --target install%s" % cmake.build_config)
+        if self.options.shared:
+            cmake.definitions["BUILD_SHARED_LIBS"] = "ON"
+        else:
+            cmake.definitions["BUILD_SHARED_LIBS"] = "OFF"
+        if self.settings.os != "Windows" and self.options.fPIC:
+            cmake.definitions["CMAKE_POSITION_INDEPENDENT_CODE"] = "True"
+            
+        cmake.definitions["ENABLE_CPP11"] = "ON"
+        cmake.definitions["BUILD_EXAMPLES"] = "OFF"
+        cmake.definitions["BUILD_TESTS"] = "OFF"
+        cmake.definitions["CMAKE_INSTALL_PREFIX"] = self.package_folder
+
+        cmake.configure(source_dir="websocketpp")
+        cmake.build()
+        cmake.install()
